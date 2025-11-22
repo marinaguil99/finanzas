@@ -1,44 +1,16 @@
-pipeline {
-    agent any
-
-    environment {
-        FINNHUB_API_KEY = credentials('finnhub_api_key')
-        SENDGRID_API_KEY = credentials('sendgrid_api_key')
-        SENDGRID_SENDER  = credentials('sendgrid_sender')
-        ALERT_EMAIL      = credentials('alert_email')
+stage('Install dependencies') {
+    steps {
+        sh 'python3 -m pip install --no-cache-dir -r requirements.txt'
     }
+}
 
-    triggers {
-        cron('H 8 * * *') // ejecuta diariamente a las 8h
-    }
-
-    stages {
-        stage('Install dependencies') {
-            steps {
-                sh 'pip install --no-cache-dir -r requirements.txt'
-            }
-        }
-
-        stage('Run Buyback Detector') {
-            steps {
-                // Montar notified.json en workspace
-                sh '''
-                    if [ ! -f "$WORKSPACE/notified.json" ]; then
-                        echo '{}' > $WORKSPACE/notified.json
-                    fi
-                    python3 scripts/check_buybacks_finnhub.py
-                '''
-            }
-        }
-    }
-
-    post {
-        success {
-            archiveArtifacts artifacts: 'notified.json', allowEmptyArchive: true
-            echo 'Job finalizado correctamente'
-        }
-        failure {
-            echo 'Pipeline falló. Revisa logs.'
-        }
+stage('Run Buyback Detector') {
+    steps {
+        sh '''
+            if [ ! -f "$WORKSPACE/notified.json" ]; then
+                echo '{}' > $WORKSPACE/notified.json
+            fi
+            python3 scripts/check_buybacks_finnhub.py
+        '''
     }
 }
