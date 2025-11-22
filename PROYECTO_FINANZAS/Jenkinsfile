@@ -1,0 +1,55 @@
+pipeline {
+  agent any
+
+  environment {
+    FINNHUB_API_KEY = credentials('finnhub_api_key')
+    SENDGRID_API_KEY = credentials('sendgrid_api_key')
+    SENDGRID_SENDER  = credentials('sendgrid_sender')   // secret text con email verificado
+    ALERT_EMAIL      = credentials('alert_email')       // destino de alertas
+  }
+
+  triggers {
+    cron('H 8 * * *') // se ejecuta diariamente (ajusta si quieres)
+  }
+
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+
+    stage('Build Docker image') {
+      steps {
+        sh 'docker build -t buyback-detector:latest .'
+      }
+    }
+
+    stage('Run Docker container') {
+      steps {
+        // Montamos notified.json para persistencia: $WORKSPACE/notified.json -> /app/notified.json
+        sh '''
+          if [ ! -f "$WORKSPACE/notified.json" ]; then
+            echo '{}' > $WORKSPACE/notified.json
+          fi
+          docker run --rm \
+            -e FINNHUB_API_KEY="$FINNHUB_API_KEY" \
+            -e SENDGRID_API_KEY="$SENDGRID_API_KEY" \
+            -e SENDGRID_SENDER="$SENDGRID_SENDER" \
+            -e ALERT_EMAIL="$ALERT_EMAIL" \
+            -e LOOKBACK_DAYS="7" \
+            -v $WORKSPACE/notified.json:/app/notified.json \
+            buyback-detector:latest
+        '''
+      }
+    }
+  }
+
+  post {
+    success {
+      archiveArtifacts artifacts: 'notified.json', allowEmptyArchive: true
+      echo 'Job finalizado correctamente'
+    }
+    failure {
+      echo 'Pipeline falló. Revisa logs.'
+    }
+  }
+}
