@@ -8,9 +8,9 @@ import re
 from datetime import datetime, timedelta
 from send_email import send_email
 
-# Config (via env vars)
+# Config
 FINNHUB_API_KEY = os.getenv('FINNHUB_API_KEY')
-LOOKBACK_DAYS = int(os.getenv('LOOKBACK_DAYS', '7'))  # ventana en días
+LOOKBACK_DAYS = int(os.getenv('LOOKBACK_DAYS', '7'))
 TICKERS_FILE = os.getenv('TICKERS_FILE', 'empresas.txt')
 NOTIFIED_FILE = os.getenv('NOTIFIED_FILE', 'notified.json')
 
@@ -94,12 +94,11 @@ def main():
             print(f"[{datetime.utcnow().isoformat()}] Consultando {ticker} {from_str}..{to_str}")
             actions = fetch_corporate_actions(ticker, from_str, to_str) or []
             profile = fetch_company_profile(ticker)
-            marketcap = profile.get('marketCapitalization')  # puede ser None
+            marketcap = profile.get('marketCapitalization')
             for evt in actions:
                 desc = evt.get('description') or evt.get('text') or ''
                 date = evt.get('date') or evt.get('exDate') or to_str
                 action_lower = (evt.get('action') or '').lower()
-                # detectar buyback
                 if ('buyback' in action_lower) or any(k in desc.lower() for k in ['buyback','repurchase','recompra']):
                     amount = None
                     if evt.get('amount'):
@@ -131,7 +130,7 @@ def main():
                     if evt.get('url'):
                         text += f"URL: {evt.get('url')}\n"
                     found_events.append({'id': event_id, 'text': text})
-            time.sleep(0.6)  # respetar rate limit
+            time.sleep(0.6)
         except Exception as e:
             print(f"Error consultando {ticker}: {e}")
 
@@ -139,7 +138,6 @@ def main():
         print("No se detectaron buybacks nuevos.")
         return 0
 
-    # Agrupar en un solo correo
     body = "\n\n---\n\n".join([e['text'] for e in found_events])
     subject = f"[Buyback detector] {len(found_events)} evento(s) detectado(s) - {datetime.utcnow().date().isoformat()}"
 
@@ -150,7 +148,6 @@ def main():
         print("Error enviando email:", e)
         return 1
 
-    # marcar como notificado
     now = datetime.utcnow().isoformat()
     for e in found_events:
         notified[e['id']] = {'notified_at': now}
