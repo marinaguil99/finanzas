@@ -16,14 +16,13 @@ pipeline {
     stages {
         stage('Install dependencies') {
             steps {
-                // Instalamos las librerías Python necesarias
-                sh 'python3 -m pip install --no-cache-dir -r requirements.txt'
+                // Instalamos las librerías Python necesarias usando --break-system-packages
+                sh 'python3 -m pip install --break-system-packages --no-cache-dir -r requirements.txt'
             }
         }
 
         stage('Run Buyback Detector') {
             steps {
-                // Ejecutamos el script
                 sh '''
                     # Crear notified.json si no existe
                     if [ ! -f "$WORKSPACE/notified.json" ]; then
